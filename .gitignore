@@ -1,0 +1,6 @@
+*.Rproj.user
+*.rds
+*.RData
+*.csv
+*.xlsx
+*.dta
