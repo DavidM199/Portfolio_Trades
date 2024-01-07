@@ -21,12 +21,20 @@ for (cusip in cusips_vector){
   bond_df <- FISD_rating_our_cusips[cusip == FISD_rating_our_cusips$COMPLETE_CUSIP,] 
   bond_df <- bond_df %>% arrange(RATING_DATE)
   current_rating <- 0
+  current_date <- 0
   for (i in 1:nrow(bond_df)){
     if (bond_df$RATING[i] != current_rating){
-      bond_df$needed[i] <- 1
+      if (i <= 2 | (bond_df$RATING_DATE[i] == current_date && bond_df$RATING[i] != bond_df$RATING[i-2])){
+        bond_df$needed[i] <- 1
+      }
+      else if (bond_df$RATING_DATE[i] != current_date){
+        bond_df$needed[i] <- 1
+      }
       current_rating <- bond_df$RATING[i]
+      }
     }
-  }
+    current_date <- bond_df$RATING_DATE[i]
+  
   FISD_rating_our_cusips[cusip == FISD_rating_our_cusips$COMPLETE_CUSIP,] <- bond_df
 }
 
@@ -42,6 +50,4 @@ write.csv(FISD_rating_changes_only, "~/Desktop/Portfolio_Trades_my_computer/data
 
 #write csv for the extracted issue data
 write.csv(FISD_issue_our_cusips, "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/FISD/FISD_issue_our_cusips.csv")
-
-
 
