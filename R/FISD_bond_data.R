@@ -1,8 +1,8 @@
 library(haven)
 library(tidyverse)
 
-FISD_bond_issues <- read_dta("~/Desktop/Portfolio_trades/data_minimizing/FISD/FISD_bond issues.dta")
-FISD_bond_rating <- read_dta("~/Desktop/Portfolio_trades/data_minimizing/FISD/FISD_bond rating.dta")
+FISD_bond_issues <- read_dta("~/Desktop/Portfolio_trades_my_computer/data_minimizing/FISD/FISD_bond issues.dta")
+FISD_bond_rating <- read_dta("~/Desktop/Portfolio_trades_my_computer/data_minimizing/FISD/FISD_bond rating.dta")
 our_inquiries <- read_csv("Desktop/Portfolio_trades/working_files/inquiries.csv")
 
 #gathering our cusips
