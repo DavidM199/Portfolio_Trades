@@ -1,4 +1,6 @@
 .Rproj.user
+SideTasks/*
+Temporary/*
 *.rds
 *.RData
 *.csv
