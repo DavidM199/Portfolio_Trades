@@ -24,14 +24,17 @@ for (cusip in cusips_vector){
   current_date <- 0
   for (i in 1:nrow(bond_df)){
     if (bond_df$RATING[i] != current_rating){
-      if (i <= 2 | (bond_df$RATING_DATE[i] == current_date && bond_df$RATING[i] != bond_df$RATING[i-2])){
+      if (i == 1 | (bond_df$RATING_DATE[i] == current_date && bond_df$RATING_TYPE[i] != bond_df$RATING_TYPE[i-1])){
         bond_df$needed[i] <- 1
       }
       else if (bond_df$RATING_DATE[i] != current_date){
         bond_df$needed[i] <- 1
       }
       current_rating <- bond_df$RATING[i]
-      }
+    }
+    else if (bond_df$RATING_DATE[i] == current_date && bond_df$RATING_TYPE[i] != bond_df$RATING_TYPE[i-1]){
+      bond_df$needed[i] <- 1
+    }
     }
     current_date <- bond_df$RATING_DATE[i]
   
