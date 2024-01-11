@@ -8,22 +8,27 @@ cusips <- inquiryData["cusip"]
 
 to_merge_Facts <- bondFacts %>% select(MATURITY, COMPLETE_CUSIP)
 
+#creating a df to compare submittime to the ratingdate, taking only rating-date < submittime
+
+to_join <- inquiryData %>% select(cusip, submittime) 
+
+submittime_rating_date <- bondRating %>% select(RATING_DATE, COMPLETE_CUSIP, RATING_TYPE, RATING) %>% filter(RATING_TYPE=="SPR" | RATING_TYPE=="MR") %>%  
+  left_join(to_join, by = c("COMPLETE_CUSIP"="cusip"), relationship = "many-to-many") %>% 
+  filter(submittime > RATING_DATE) %>% select(-submittime)
+
+#rating_type_rating_date_rating <- bondRating %>% select(COMPLETE_CUSIP, RATING_TYPE, RATING_DATE, RATING) %>%
+#  filter(RATING_TYPE=="SPR" | RATING_TYPE=="MR") %>% distinct(COMPLETE_CUSIP, RATING_DATE, .keep_all = TRUE) 
 
 
-rating_type_rating_date_rating <- bondRating %>% select(COMPLETE_CUSIP, RATING_TYPE, RATING_DATE, RATING) %>%
-  filter(RATING_TYPE=="SPR" | RATING_TYPE=="MR") %>% distinct(COMPLETE_CUSIP, RATING_DATE, .keep_all = TRUE) 
-
-to_merge_Rating <- bondRating %>% filter(RATING_TYPE=="SPR" | RATING_TYPE=="MR")  %>% 
+#taking only the max(RATING_DATE)
+to_merge_Rating <- submittime_rating_date  %>% 
   group_by(COMPLETE_CUSIP) %>% summarise(RATING_DATE = max(RATING_DATE)) %>%  
-  left_join(rating_type_rating_date_rating, by = c("COMPLETE_CUSIP" = "COMPLETE_CUSIP", "RATING_DATE" = "RATING_DATE"))
-
-to_merge_Rating %>% n_distinct()
+  left_join(submittime_rating_date, by = c("COMPLETE_CUSIP" = "COMPLETE_CUSIP", "RATING_DATE" = "RATING_DATE")) %>% 
+  distinct()
 
 merged_inquiries <- inquiryData %>% left_join(to_merge_Facts, by = c("cusip" = "COMPLETE_CUSIP"), relationship = "many-to-one") 
 
-merged_inquiries <- merged_inquiries %>%  left_join(to_merge_Rating, by = c("cusip" = "COMPLETE_CUSIP"), relationship = "many-to-one")
-
-
+merged_inquiries <- merged_inquiries %>%  left_join(to_merge_Rating, by = c("cusip" = "COMPLETE_CUSIP"))
 
 #pasted this here in case I need it later
 func_days <- function(Date1 , Date2){
@@ -56,7 +61,28 @@ difference_in_years <- function(start_date, end_date){
 
 merged_inquiries$maturity_at_submittime <- difference_in_years(merged_inquiries$submittime, merged_inquiries$MATURITY)
   
+#Here I find out what kind of ratings exict for both
+ratings_SPR <- merged_inquiries %>% select(RATING_TYPE, RATING) %>% distinct() %>% filter(RATING_TYPE=="SPR")
+ratings_MR <- merged_inquiries %>% select(RATING_TYPE, RATING) %>% distinct() %>% filter(RATING_TYPE=="MR")
+ratings_SPR$RATING
 
-merged_inquiries %>% select(RATING_TYPE, RATING)
+ordered_ratings_SPR <- c("AAA", "AA+", "AA", "AA-", "A+", "A", "A-", 
+                     "BBB+", "BBB", "BBB-", "BB+", "BB", "BB-", 
+                     "B+", "B", "B-", "CCC+", "CCC", "CCC-", 
+                     "CC", "C", "D")
+ordered_ratings_MR <- c("Aaa", "Aa1", "Aa2", "Aa3", "A1", "A2", "A3",
+                        "Baa1", "Baa2", "Baa3", "Ba1", "Ba2", "Ba3",
+                        "B1", "B2", "B3", "Caa1", "Caa2", "Caa3",
+                        "Ca", "C")
   
-  
+#Adding the numerical ratings column
+merged_inquiries <- merged_inquiries %>% 
+  mutate(RATING_num = ifelse(RATING_TYPE=="SPR", match(RATING, ordered_ratings_SPR), match(RATING, ordered_ratings_MR)))
+
+
+
+
+
+
+
+
