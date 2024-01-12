@@ -1,4 +1,5 @@
 library(tidyverse)
+library(ggplot2)
 library(lubridate)
 
 bondRating <- read.csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/FISD/FISD_rating_changes_only.csv")
@@ -101,27 +102,144 @@ compute_stats <- function(column) {
   
   return(c(Min = min_val, Q1 = q1, Q2 = q2, Q3 = q3, Max = max_val, MM = mm, Q31 = q31, Q31_Norm = q31_norm, MM_Norm = mm_norm))
 }
+compute_mm <- function(x){
+  min_val <- min(x, na.rm = TRUE)
+  max_val <- max(x, na.rm = TRUE)
+  mm <- max_val / min_val
+  return(mm)
+}
+compute_Q31 <- function(x){
+  q1 <- quantile(x, 0.25, na.rm = TRUE)
+  q3 <- quantile(x, 0.75, na.rm = TRUE)
+  q31 <- q3 / q1
+  return(q31)
+}
+compute_Q31_Norm <- function(x){
+  q1 <- quantile(x, 0.25, na.rm = TRUE)
+  q2 <- median(x, na.rm = TRUE)
+  q3 <- quantile(x, 0.75, na.rm = TRUE)
+  q31_norm <- (q3 - q1) / q2
+  return(q31_norm)
+}
+compute_MM_Norm <- function(x){
+  min_val <- min(x, na.rm = TRUE)
+  max_val <- max(x, na.rm = TRUE)
+  q2 <- median(x, na.rm = TRUE)
+  mm_norm <- (max_val - min_val) / q2
+}
 
-# Apply the function to each column (example with 'maturity', replace with actual column names)
-maturity_stats <- compute_stats(filtered_df$maturity_at_submittime)
 
-# Repeat for numerical S&P rating and numerical Moody's rating
-SPR_num <- filtered_df %>% filter(RATING_TYPE=="SPR")
-SPR_num <- SPR_num$RATING
+#getting the maturity, s&p numerical, Moody's numerical dataframes ready
+maturity_stats <- filtered_df %>% group_by(req_id, request_type) %>% summarise(MM = compute_mm(maturity_at_submittime), 
+                                                                               Q31 = compute_Q31(maturity_at_submittime), 
+                                                                               Q31_Norm = compute_Q31_Norm(maturity_at_submittime), 
+                                                                               MM_Norm = compute_MM_Norm(maturity_at_submittime))
+write.csv(maturity_stats, "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/FISD/maturity_stats.csv")
+maturity_stats <- read.csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/FISD/maturity_stats.csv")
 
-MR_num <- filtered_df %>% filter(RATING_TYPE=="MR")
-MR_num <- MR_num$RATING
+SPR_num <- filtered_df %>% filter(RATING_TYPE=="SPR") %>% group_by(req_id, request_type) %>% summarise(MM = compute_mm(RATING_num), 
+                                                                                                   Q31 = compute_Q31(RATING_num), 
+                                                                                                   Q31_Norm = compute_Q31_Norm(RATING_num), 
+                                                                                                   MM_Norm = compute_MM_Norm(RATING_num))
+write.csv(SPR_num, "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/FISD/S&P_stats.csv")
 
-# Step 3: Plotting
-# Creating histograms for each of MM, Q31, Q31_Norm, MM_Norm
-# Example histogram for MM (repeat for others)
-histogram <- ggplot(maturity_stats, aes(x = MM, fill = factor(Type))) +  # Replace 'Type' with your PT/List distinguishing column
+MR_num <- filtered_df %>% filter(RATING_TYPE=="MR") %>% group_by(req_id, request_type) %>% summarise(MM = compute_mm(RATING_num), 
+                                                                                                          Q31 = compute_Q31(RATING_num), 
+                                                                                                          Q31_Norm = compute_Q31_Norm(RATING_num),
+                                                                                                     MM_Norm = compute_MM_Norm(RATING_num))
+write.csv(MR_num, "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/FISD/Moodys_stats.csv")
+
+maturity_stats <- maturity_stats %>% filter(is.finite(MM), is.finite(Q31), is.finite(Q31_Norm), is.finite(MM_Norm))
+maturity_stats <- maturity_stats %>%
+  mutate(MM = as.numeric(MM),
+         Q31 = as.numeric(Q31),
+         Q31_Norm = as.numeric(Q31_Norm),
+         MM_Norm = as.numeric(MM_Norm))
+
+long_maturity_stats <- maturity_stats %>%
+  gather(key = "metric", value = "value", MM, Q31, Q31_Norm, MM_Norm)
+
+#PT maturity_stats
+PT_long_maturity_stats <- long_maturity_stats %>% filter(request_type=="PT")
+
+ggplot(PT_long_maturity_stats, aes(x = value, fill = factor(request_type))) +  
+  geom_histogram(bins = 30, alpha = 0.5) +
+  scale_x_continuous(limits = c(0, 30))+
+  facet_wrap(~metric, scales = "free_x") +
+  scale_fill_manual(values = c("blue", "red")) +  
+  labs(title = "Histograms of Maturity - PT", x = "Value", y = "Count")
+
+#List maturity_stats
+LIST_long_maturity_stats <- long_maturity_stats %>% filter(request_type=="List")
+
+ggplot(LIST_long_maturity_stats, aes(x = value, fill = factor(request_type))) +  
+  geom_histogram(bins = 40, alpha = 0.5) +
+  scale_x_continuous(limits = c(0, 40))+
+  facet_wrap(~metric, scales = "free_x") +
+  scale_fill_manual(values = c("blue", "red")) +  
+  labs(title = "Histograms of Maturity - List", x = "Value", y = "Count")
+
+#S&P ratings histograms-----------------------
+SPR_num <- SPR_num %>% filter(is.finite(MM), is.finite(Q31), is.finite(Q31_Norm), is.finite(MM_Norm))
+SPR_num <- SPR_num %>%
+  mutate(MM = as.numeric(MM),
+         Q31 = as.numeric(Q31),
+         Q31_Norm = as.numeric(Q31_Norm),
+         MM_Norm = as.numeric(MM_Norm))
+
+long_SPR_num <- SPR_num %>%
+  gather(key = "metric", value = "value", MM, Q31, Q31_Norm, MM_Norm)
+
+#PT S&P ratings stats
+PT_long_SPR_num <- long_SPR_num %>% filter(request_type=="PT")
+
+ggplot(PT_long_SPR_num, aes(x = value, fill = factor(request_type))) +  
+  geom_histogram(bins = 28, alpha = 0.5) +
+  scale_x_continuous(limits = c(0, 13))+
+  facet_wrap(~metric, scales = "free_x") +
+  scale_fill_manual(values = c("blue", "red")) +  
+  labs(title = "Histograms of S&P ratings stats - PT", x = "Value", y = "Count")
+
+#List S&P ratings stats
+LIST_long_SPR_num <- long_SPR_num %>% filter(request_type=="List")
+
+ggplot(LIST_long_SPR_num, aes(x = value, fill = factor(request_type))) +  
+  geom_histogram(bins = 28, alpha = 0.5) +
+  scale_x_continuous(limits = c(0, 13))+
+  facet_wrap(~metric, scales = "free_x") +
+  scale_fill_manual(values = c("blue", "red")) +  
+  labs(title = "Histograms of S&P ratings stats - List", x = "Value", y = "Count")
+
+#Moody's ratings histograms-------------
+
+MR_num <- MR_num %>% filter(is.finite(MM), is.finite(Q31), is.finite(Q31_Norm), is.finite(MM_Norm))
+MR_num <- MR_num %>%
+  mutate(MM = as.numeric(MM),
+         Q31 = as.numeric(Q31),
+         Q31_Norm = as.numeric(Q31_Norm),
+         MM_Norm = as.numeric(MM_Norm))
+
+long_MR_num <- MR_num %>%
+  gather(key = "metric", value = "value", MM, Q31, Q31_Norm, MM_Norm)
+
+#PT Moody's ratings stats
+PT_long_MR_num <- long_MR_num %>% filter(request_type=="PT")
+
+ggplot(PT_long_MR_num, aes(x = value, fill = factor(request_type))) +  
   geom_histogram(bins = 30, alpha = 0.7) +
-  scale_fill_manual(values = c("blue", "red")) +  # Different colors for PT and List
-  labs(title = "Histogram of MM", x = "MM", y = "Count")
+  scale_x_continuous(limits = c(0, 15))+
+  facet_wrap(~metric, scales = "free_x") +
+  scale_fill_manual(values = c("blue", "red")) +  
+  labs(title = "Histograms of Moody's rating stats - PT", x = "Value", y = "Count")
 
+#List Moody's ratings stats
+LIST_long_MR_num<- long_MR_num %>% filter(request_type=="List")
 
-
-
+ggplot(LIST_long_MR_num, aes(x = value, fill = factor(request_type))) +  
+  geom_histogram(bins = 30, alpha = 0.7) +
+  scale_x_continuous(limits = c(0, 15))+
+  facet_wrap(~metric, scales = "free_x") +
+  scale_fill_manual(values = c("blue", "red")) +  
+  labs(title = "Histograms of Moody's rating stats - List", x = "Value", y = "Count")
 
 
