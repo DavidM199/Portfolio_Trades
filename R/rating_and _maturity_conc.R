@@ -243,3 +243,4 @@ ggplot(LIST_long_MR_num, aes(x = value, fill = factor(request_type))) +
   labs(title = "Histograms of Moody's rating stats - List", x = "Value", y = "Count")
 
 
+
