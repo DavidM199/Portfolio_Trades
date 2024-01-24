@@ -7,16 +7,17 @@ library(patchwork)
 
 # Reading Data ------------------------------------------------------------
 
-
+#Hamed data
 df.inquiry     <- read_dta("../Data/RFQ/inquiry_proccessed.dta")
 df.bondFacts   <- read_dta("../Data/MergentFisd/bondFacts.dta")
 df.bondRatings <- read_dta("../Data/MergentFisd/bondRating.dta")
 
-df.inquiry  <- read.csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv")
-df.bondFacts <- read.csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/FISD/FISD_issue_our_cusips.csv")
+#David data
+df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv")
+df.bondFacts <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/FISD/FISD_issue_our_cusips.csv")
 df.bondRatings <- read_dta("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/FISD/bondRating_Hamed_filtered.dta")
-# Filtering and Merging Data --------------------------------------------
 
+# Filtering and Merging Data --------------------------------------------
 
 # Instead of using day function, as.Date can be used
 df.inquiry <- df.inquiry %>%
@@ -29,7 +30,7 @@ df.inquiry_broker_dealer <- list(filter(df.inquiry, p_type == "Broker-Dealer"), 
   
 df.bondFacts <- df.bondFacts %>% rename(cusip = COMPLETE_CUSIP)
 df.bondFacts <- df.bondFacts %>%
-  select(cusip , MATURITY)
+  select(cusip , MATURITY, ISSUER_ID)
 
 df.bondRatings <- df.bondRatings %>%
   select(cusip , rating_date , ratingMR , ratingSPR)
