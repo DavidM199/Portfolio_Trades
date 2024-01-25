@@ -96,13 +96,16 @@ for (j in 1:3){
     df.stats[[j]] <- df
     
 
-    p <- #ggplot((df %>% 
+    p <-
+      #STEP CODE----------------------------------------------------------------
+      #ggplot((df %>% 
         #           group_by(statistic) %>% 
         #           arrange(value) %>% 
         #           mutate(rn = row_number(), n=n()))) + 
       #geom_step(aes(x=value, y=rn/n, color=statistic))+
       #facet_wrap(~request_type)+
       
+      #Histogram code-----------------------------------------------------------
       ggplot(df, aes(x = value, fill = request_type)) +
       geom_histogram(aes(y = after_stat(density)), binwidth = 1, alpha = 0.5) +
       labs(y = "Probability", x = "Value") +
