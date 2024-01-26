@@ -72,12 +72,6 @@ for (j in 1:3){
   df.stats <- list()
   df.inquiry_grouped <- ranked_df.inquiry_grouped[[j]]
   
-  #for (i in 1:3){
-    
-    
-    #df <- df.inquiry_grouped %>% select(req_id, request_type, ISSUER_ID, p_type, rank)
-    
-    #colnames(df)[3] <- "target"
     
     # Instead of making na.rm = T for each function, we can do it here and once
     df <- df.inquiry_grouped
@@ -89,7 +83,8 @@ for (j in 1:3){
       summarise(request_type  = unique(request_type),
                 max_ranking = max(rank),
                 q_75 = quantile(rank, 0.75),
-                median_ranking = median(rank) 
+                median_ranking = median(rank),
+                #mean_inqu_per_bond = n()/max(rank)
                 )%>%
       pivot_longer(!c(req_id , request_type), names_to = "statistic", values_to = "value")
     
@@ -107,11 +102,12 @@ for (j in 1:3){
       
       #Histogram code-----------------------------------------------------------
       ggplot(df, aes(x = value, fill = request_type)) +
-      geom_histogram(aes(y = after_stat(density)), binwidth = 1, alpha = 0.5) +
+      geom_histogram(aes(y = after_stat(density)), binwidth = 1, alpha = 0.5, position = "identity") +
       labs(y = "Probability", x = "Value") +
       facet_wrap(~statistic)+
       
-      scale_y_continuous(labels = scales::percent)
+      scale_y_continuous(labels = scales::percent)+
+      coord_cartesian(xlim = c(0, 10))
       
     if (j==1 | j == 3){
       p <- p + xlim(0, 200)
@@ -136,7 +132,7 @@ for (j in 1:3){
 
 
 
-pdf(file   = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/Issuer_id_concetration_histogram.pdf",   # The directory you want to save the file in
+pdf(file   = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/issuer_id_conc_0_10_hist.pdf",
     width  = 8, # The width of the plot in inches
     height = 4) # The height of the plot in inches
 
