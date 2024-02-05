@@ -6,3 +6,7 @@ Temporary/*
 *.csv
 *.xlsx
 *.dta
+*.RDataTmp
+.Rhistory
+*.Rproj
+*.DS_Store
