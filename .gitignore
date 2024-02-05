@@ -7,6 +7,6 @@ Temporary/*
 *.xlsx
 *.dta
 *.RDataTmp
-.Rhistory
+*.Rhistory
 *.Rproj
 *.DS_Store
