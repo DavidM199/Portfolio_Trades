@@ -2,6 +2,7 @@
 
 library(tidyverse)
 library(gridExtra)
+library(grid)
 
 #  TASK #1
 
@@ -16,7 +17,8 @@ library(gridExtra)
 
 df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv")
 
-df.inquiry_sub <- df.inquiry %>% select(req_id, request_type, req_quantity) %>% filter(request_type != "SRFQ")
+#For the filter(number_assets >= 10) version, uncomment the last part of the next line
+df.inquiry_sub <- df.inquiry %>% select(req_id, request_type, req_quantity, number_assets) %>% filter(request_type != "SRFQ") # %>% filter(number_assets >= 10)
 df.inquiry_sub_T1 <- df.inquiry_sub %>% group_by(req_id, request_type) %>% summarise(sub = n_distinct(req_quantity)) 
 
 plot_task1 <- ggplot(df.inquiry_sub_T1, aes(x = sub)) +
@@ -24,7 +26,8 @@ plot_task1 <- ggplot(df.inquiry_sub_T1, aes(x = sub)) +
                  binwidth = 1, alpha = 0.5, position = "identity") +
   labs(y = "Probability", x = "sublist/subPT") +
   coord_cartesian(xlim = c(0, 150)) + 
-  scale_y_continuous(labels = scales::percent)
+  scale_y_continuous(labels = scales::percent) +
+  ggtitle("Task 1 - number of sublist/subPT for each request")
 
 plot_task1
 
@@ -40,16 +43,16 @@ sum_stats_sub <- df.inquiry_sub_T1 %>% group_by(request_type) %>%
     p95  = quantile(sub, 0.95, na.rm = TRUE) %>% round(3),
     p99  = quantile(sub, 0.99, na.rm = TRUE) %>% round(3))
   
-pdf(file   = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/sublist_subPT.pdf",
-    width  = 8, # The width of the plot in inches
-    height = 4) # The height of the plot in inches
-
-plot(plot_task1)
-plot.new()
-
-grid.table(sum_stats_sub)
-
-dev.off()
+# pdf(file   = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/sublist_subPT.pdf",
+#     width  = 8, # The width of the plot in inches
+#     height = 4) # The height of the plot in inches
+# 
+# plot(plot_task1)
+# plot.new()
+# 
+# grid.table(sum_stats_sub)
+# 
+# dev.off()
 
 
 
@@ -61,7 +64,7 @@ dev.off()
 # quantity. Then create histograms and sum stats tables as in 1.
 
 df.inquiry_sub_T2 <- df.inquiry_sub %>% group_by(req_id, request_type, req_quantity) %>% 
-                                        summarise(n_per_sub = n()) %>% group_by(req_id, request_type) %>% 
+                                        summarise(n_per_sub = n(), .groups = 'keep') %>% group_by(req_id, request_type) %>% 
                                         summarise(n_per_req = sum(n_per_sub),
                                                   n_nonsingleton = n_per_req - sum(n_per_sub == 1),
                                                   percentage = n_nonsingleton/n_per_req) 
@@ -70,8 +73,8 @@ plot_task2 <- ggplot(df.inquiry_sub_T2, aes(x = percentage)) +
   geom_histogram(aes(y = after_stat(density)*0.03, fill = request_type), 
                  binwidth = 0.03, alpha = 0.5, position = "identity") +
   labs(y = "Probability", x = "sublist/subPT") +
-  #coord_cartesian(xlim = c(0)) + 
-  scale_y_continuous(labels = scales::percent)
+  scale_y_continuous(labels = scales::percent) +
+  ggtitle("Task 2 - percent of nonsingletons for each request")
 
 plot_task2
 
@@ -87,13 +90,39 @@ sum_stats_nonsingleton <- df.inquiry_sub_T2 %>% group_by(request_type) %>%
     p95  = quantile(percentage, 0.95, na.rm = TRUE) %>% round(3),
     p99  = quantile(percentage, 0.99, na.rm = TRUE) %>% round(3))
 
-pdf(file   = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/sublist_subPT_nonsingleton.pdf",
-    width  = 8, # The width of the plot in inches
-    height = 4) # The height of the plot in inches
+# pdf(file   = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/sublist_subPT_nonsingleton.pdf",
+#     width  = 8, # The width of the plot in inches
+#     height = 4) # The height of the plot in inches
+# 
+# plot(plot_task2)
+# plot.new()
+# 
+# grid.table(sum_stats_nonsingleton)
+# 
+# dev.off()
 
+#-----------------------------------------------------------
+
+pdf(file = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/sublist-subPT-T1-T2_num_assets_filter.pdf",
+    width = 8, 
+    height = 6) # Increase height to accommodate plots and tables without overlap or extra pages
+
+# First plot (using base plotting system)
+plot(plot_task1)
+grid.newpage()
+
+grid.text("Sum stats Task 1 - number of subs per request", x = 0.5, y = 0.95, just = "center", gp = gpar(fontsize = 12))
+grid.table(sum_stats_sub, vp = viewport(x = 0.5, y = 0.5, width = 0.9, height = 0.4))
+#grid.newpage()
+
+# Second plot (using base plotting system)
 plot(plot_task2)
-plot.new()
+grid.newpage()
 
-grid.table(sum_stats_nonsingleton)
+grid.text("Sum stats Task 2 - percent of nonsingletons per request", x = 0.5, y = 0.95, just = "center", gp = gpar(fontsize = 12))
 
+grid.table(sum_stats_nonsingleton, vp = viewport(x = 0.5, y = 0.5, width = 0.9, height = 0.4))
+
+# Close the PDF device
 dev.off()
+
