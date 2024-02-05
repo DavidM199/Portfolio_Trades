@@ -19,30 +19,30 @@ df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/
 
 #For the filter(number_assets >= 10) version, uncomment the last part of the next line
 df.inquiry_sub <- df.inquiry %>% select(req_id, request_type, req_quantity, number_assets) %>% filter(request_type != "SRFQ") # %>% filter(number_assets >= 10)
-df.inquiry_sub_T1 <- df.inquiry_sub %>% group_by(req_id, request_type) %>% summarise(sub = n_distinct(req_quantity)) 
+df.inquiry_sub_T1 <- df.inquiry_sub %>% group_by(req_id, request_type, req_quantity) %>% summarise(sub_n = n()) 
 
-plot_task1 <- ggplot(df.inquiry_sub_T1, aes(x = sub)) +
+plot_task1 <- ggplot(df.inquiry_sub_T1, aes(x = sub_n)) +
   geom_histogram(aes(y = after_stat(density), fill = request_type), 
                  binwidth = 1, alpha = 0.5, position = "identity") +
   labs(y = "Probability", x = "sublist/subPT") +
-  coord_cartesian(xlim = c(0, 150)) + 
+  coord_cartesian(xlim = c(0, 15)) + 
   scale_y_continuous(labels = scales::percent) +
-  ggtitle("Task 1 - number of sublist/subPT for each request")
+  ggtitle("Task 1 - number of inquiries in sublist/subPT")
 
 plot_task1
 
 sum_stats_sub <- df.inquiry_sub_T1 %>% group_by(request_type) %>%
   summarise(
-    Mean = mean(    sub,       na.rm = TRUE) %>% round(3),
-    SD   = sd(      sub,       na.rm = TRUE) %>% round(3),
-    p1   = quantile(sub, 0.01, na.rm = TRUE) %>% round(3),
-    p5   = quantile(sub, 0.05, na.rm = TRUE) %>% round(3),
-    p10  = quantile(sub, 0.10, na.rm = TRUE) %>% round(3),
-    p50  = quantile(sub, 0.50, na.rm = TRUE) %>% round(3),
-    p90  = quantile(sub, 0.90, na.rm = TRUE) %>% round(3),
-    p95  = quantile(sub, 0.95, na.rm = TRUE) %>% round(3),
-    p99  = quantile(sub, 0.99, na.rm = TRUE) %>% round(3))
-  
+    Mean = mean(    sub_n,       na.rm = TRUE) %>% round(3),
+    SD   = sd(      sub_n,       na.rm = TRUE) %>% round(3),
+    p1   = quantile(sub_n, 0.01, na.rm = TRUE) %>% round(3),
+    p5   = quantile(sub_n, 0.05, na.rm = TRUE) %>% round(3),
+    p10  = quantile(sub_n, 0.10, na.rm = TRUE) %>% round(3),
+    p50  = quantile(sub_n, 0.50, na.rm = TRUE) %>% round(3),
+    p90  = quantile(sub_n, 0.90, na.rm = TRUE) %>% round(3),
+    p95  = quantile(sub_n, 0.95, na.rm = TRUE) %>% round(3),
+    p99  = quantile(sub_n, 0.99, na.rm = TRUE) %>% round(3))
+
 # pdf(file   = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/sublist_subPT.pdf",
 #     width  = 8, # The width of the plot in inches
 #     height = 4) # The height of the plot in inches
@@ -103,7 +103,7 @@ sum_stats_nonsingleton <- df.inquiry_sub_T2 %>% group_by(request_type) %>%
 
 #-----------------------------------------------------------
 
-pdf(file = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/sublist-subPT-T1-T2_num_assets_filter.pdf",
+pdf(file = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/sublist-subPT-T1-T2.pdf",
     width = 8, 
     height = 6) # Increase height to accommodate plots and tables without overlap or extra pages
 
