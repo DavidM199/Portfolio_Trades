@@ -25,8 +25,9 @@ library(grid)
 df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv")
 
 
-df.inquiry_sub <- df.inquiry %>% select(req_id, request_type, req_quantity, number_assets, p_type) %>% filter(!(request_type == "SRFQ"), !(p_type == "Broker-Dealer")) 
+df.inquiry_sub <- df.inquiry %>% select(req_id, request_type, req_quantity, number_assets, p_type, product_cd) %>% filter(!(request_type == "SRFQ"), !(p_type == "Broker-Dealer"), !(product_cd == "USHG")) 
 sum(df.inquiry_sub$p_type == "Broker-Dealer")
+sum(df.inquiry_sub$product_cd == "USHG")
 #Putting the later computations in a function for faster computing and clear pdf creation in the end
 sublist_subPT <- function(df.inquiry_sub, filter = FALSE) {
   
@@ -34,7 +35,7 @@ sublist_subPT <- function(df.inquiry_sub, filter = FALSE) {
    df.inquiry_sub <- df.inquiry_sub  %>% filter(number_assets >= 10)
  }
   
- df.inquiry_sub_T1 <- df.inquiry_sub %>% group_by(req_id, request_type, req_quantity) %>% summarise(sub_n = n()) 
+ df.inquiry_sub_T1 <- df.inquiry_sub %>% group_by(req_id, request_type, req_quantity) %>% summarise(sub_n = n()) %>% filter(sub_n >= 2)
  
  plot_task1 <- ggplot(df.inquiry_sub_T1, aes(x = sub_n)) +
    geom_histogram(aes(y = after_stat(density), fill = request_type), 
@@ -123,7 +124,7 @@ non_filtered <- sublist_subPT(df.inquiry_sub, filter = FALSE)
 filtered <- sublist_subPT(df.inquiry_sub, filter = TRUE)
 variations <- list(non_filtered, filtered)
 
-pdf(file = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/sublist-subPT-T1-T2.pdf",
+pdf(file = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/sublist-subPT-T1-T2_excl_USHG.pdf",
     width = 8, 
     height = 6)
 
