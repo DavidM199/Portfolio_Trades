@@ -25,7 +25,7 @@ library(grid)
 df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv")
 
 
-df.inquiry_sub <- df.inquiry %>% select(req_id, request_type, req_quantity, number_assets) %>% filter(request_type != "SRFQ") 
+df.inquiry_sub <- df.inquiry %>% select(req_id, request_type, req_quantity, number_assets, p_type) %>% filter(request_type != "SRFQ", p_type != "Broker-Dealer") 
 
 #Putting the later computations in a function for faster computing and clear pdf creation in the end
 sublist_subPT <- function(df.inquiry_sub, filter = FALSE) {
@@ -127,7 +127,6 @@ pdf(file = "~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/sublist-subP
     width = 8, 
     height = 6)
 
-# First plot (using base plotting system)
 for (plots in variations){
  plot(plots[[1]])
  
@@ -137,7 +136,6 @@ for (plots in variations){
  grid.text("Sum stats Task 1 - number of subs per request", x = 0.5, y = 0.95, just = "center", gp = gpar(fontsize = 12))
  grid.table(plots[[3]], vp = viewport(x = 0.5, y = 0.5, width = 0.9, height = 0.4))
  
- # Second plot (using base plotting system)
  plot(plots[[4]])
  
  plot(plots[[5]])
