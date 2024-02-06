@@ -25,7 +25,7 @@ library(grid)
 df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv")
 
 
-df.inquiry_sub <- df.inquiry %>% select(req_id, request_type, req_quantity, number_assets, p_type) %>% filter(request_type != "SRFQ", p_type != "Broker-Dealer") 
+df.inquiry_sub <- df.inquiry %>% select(req_id, request_type, req_quantity, number_assets, p_type) %>% filter(!(request_type == "SRFQ"), !(p_type == "Broker-Dealer")) 
 sum(df.inquiry_sub$p_type == "Broker-Dealer")
 #Putting the later computations in a function for faster computing and clear pdf creation in the end
 sublist_subPT <- function(df.inquiry_sub, filter = FALSE) {
