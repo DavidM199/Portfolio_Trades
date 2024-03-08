@@ -1,7 +1,7 @@
 use "$data/RFQ/inquiry_proccessed.dta" , replace
 
 
-gen trd_bst_response = .
+gen 	trd_bst_response = .
 replace trd_bst_response = tradeprice 		if product_cd == "USHY" & !mi(tradeprice)
 replace trd_bst_response = tradespread 		if product_cd == "USHG" & !mi(tradespread)
 replace trd_bst_response = best_response 	if product_cd == "USHY" &  mi(tradeprice)
