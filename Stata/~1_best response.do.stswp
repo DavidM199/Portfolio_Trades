@@ -38,11 +38,11 @@ drop if qnt_range_exist == 1 & mi(qnt_range)
 * generate best_response based on the rules
 gen best_response = .
 
-by inquiryid: ereplace best_response = max(response_level) if  trading_protocol == "Price" 	& legside == "BWIC"
-by inquiryid: ereplace best_response = min(response_level) if  (trading_protocol == "Spread" | trading_protocol == "Yield") & legside == "BWIC"
+by inquiryid: ereplace best_response = max(response_level) if  legside == "BWIC" &  trading_protocol == "Price"
+by inquiryid: ereplace best_response = min(response_level) if  legside == "BWIC" & (trading_protocol == "Spread" | trading_protocol == "Yield")
 
-by inquiryid: ereplace best_response = min(response_level) if  trading_protocol == "Price" 	& legside == "OWIC"
-by inquiryid: ereplace best_response = max(response_level) if  (trading_protocol == "Spread" | trading_protocol == "Yield") & legside == "OWIC"
+by inquiryid: ereplace best_response = min(response_level) if  legside == "OWIC" &  trading_protocol == "Price"
+by inquiryid: ereplace best_response = max(response_level) if  legside == "OWIC" & (trading_protocol == "Spread" | trading_protocol == "Yield")
 
 
 * keep best response
