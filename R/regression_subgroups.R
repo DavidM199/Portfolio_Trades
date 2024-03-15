@@ -1,7 +1,7 @@
 library(tidyverse)
 library(purrr)
 library(lfe)
-
+library(dplyr)
 df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv")
 
 # 0 - Initial check START
@@ -82,14 +82,17 @@ df.inquiry <- df.inquiry %>% left_join(numsublists, by="req_id")
 
 #mincost_outsidesublist, mediancost_outsidesublist
 cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity) %>%
-                                      summarise(min_cost = sample(mincost_insublist, size=1),
-                                                median_cost = sample(mediancost_insublist, size=1)) %>% 
+                                      summarise(min_cost = min(mincost_insublist),
+                                                median_cost = median(mediancost_insublist)) %>% 
                                       group_by(req_id) %>% 
                                       mutate(
                                         mincost_outsidesublist = map_dbl(row_number(), function(x) {
                                         
                                         vec_to_sample <- min_cost[-x]
-                                        if (length(vec_to_sample) > 0) {
+                                        if (length(vec_to_sample) == 1){
+                                          vec_to_sample[1]
+                                        }
+                                        else if (length(vec_to_sample) > 0) {
                                           sample(vec_to_sample, size = 1)
                                         } else {
                                           NA_real_ 
@@ -114,14 +117,17 @@ df.inquiry <- df.inquiry %>% left_join(cost_outsidesublist, by=c("req_id", "req_
 
 
 #Testing ----- map_dbl(row_number(), function(x){...})
-names <- c("A", "B", "C", "D", "E")
-prices <- c(10.99, 7.99, 15.99, 11.5, 20.33)
+names <- c("A", "B")
+prices <- c(10.99, 7.99)
 
 test <- data.frame(name = names, price = prices)
 
 test <- test %>% mutate(min_cost_ex =  map_dbl(row_number(),function(x) {
   vec_to_sample <- price[-x]
-  if (length(vec_to_sample) > 0) {
+  if (length(vec_to_sample) == 1){
+    vec_to_sample[1]
+  }
+  else if (length(vec_to_sample) > 0) {
     sample(vec_to_sample, size = 1)
   } else {
     NA_real_ 
@@ -190,9 +196,37 @@ grid.arrange(coefs_model1, coefs_model2,
 
 dev.off()
 
+#with summary only in a more organized manner
+
+summary1 <- data.frame(summary_regr1$coefficients )
+summary2 <-  data.frame(summary_regr2$coefficients)
 
 
+print(colnames(summary1))
+for (col_name in colnames(summary1)) {
+   if (col_name == "Pr...t..") {
+     summary1[[col_name]] <- formatC(summary1[[col_name]], format = "g", digits = 3)
+  }else {
+    summary1[[col_name]] <- formatC(summary1[[col_name]], format = "f", digits = 4)
+  } 
+}
+for (col_name in colnames(summary2)) {
 
+    summary2[[col_name]] <- formatC(summary2[[col_name]], format = "f", digits = 4)
+  
+}
 
+colnames(summary1) <-  c("Estimate","Cluster.s.e.","t.value","pval")
+colnames(summary2) <-  c("Estimate","Cluster.s.e.","t.value","pval")
 
+summary1 <- tableGrob(summary1)
+summary2 <- tableGrob(summary2)
+
+pdf("~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/regression_results_summary.pdf", 
+    width = 11,
+    height = 8)
+grid.arrange(summary1, summary2,
+             ncol = 1)
+
+dev.off()
 
