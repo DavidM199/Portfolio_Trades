@@ -81,7 +81,35 @@ numsublists <- df.inquiry %>% select(req_id, req_quantity) %>% group_by(req_id, 
 df.inquiry <- df.inquiry %>% left_join(numsublists, by="req_id")
                             
                          
+test  <- df.inquiry %>% group_by(req_id, req_quantity) %>%
+  summarise(min_cost = min(mincost_insublist, na.rm = TRUE),
+            median_cost = median(mediancost_insublist, na.rm = TRUE)) %>% 
+  group_by(req_id)  %>% 
+  mutate(
+    mincost_outsidesublist = map_dbl(row_number(), function(x) {
+      
+      vec_to_sample <- min_cost[-x]
+      if (length(vec_to_sample) == 1){
+        1
+      }
+      else {
+        0
+      }
+    }),
+    mediancost_outsidesublist = map_dbl(row_number(),function(x) {
+      
+      vec_to_sample <- median_cost[-x]
+      if (length(vec_to_sample) == 1){
+        1
+      } else {
+        0 
+      }}))
+test$mincost_outsidesublist[is.infinite(test$mincost_outsidesublist)] <- NA
+test$mediancost_outsidesublist[is.infinite(test$mediancost_outsidesublist)] <- NA
+sum(test$mincost_outsidesublist)
+sum(test$mediancost_outsidesublist)
 
+length(test$mediancost_outsidesublist)
 
 #mincost_outsidesublist, mediancost_outsidesublist
 cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity) %>%
@@ -105,7 +133,9 @@ cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity) %>%
                                       mediancost_outsidesublist = map_dbl(row_number(),function(x) {
                                         
                                         vec_to_sample <- median_cost[-x]
-                                        if (length(vec_to_sample) > 0) {
+                                        if (length(vec_to_sample) == 1){
+                                          vec_to_sample[1]
+                                        } else if (length(vec_to_sample) > 0) {
                                           sample(vec_to_sample, size = 1)
                                         } else {
                                           NA_real_ 
@@ -114,6 +144,7 @@ cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity) %>%
 
 cost_outsidesublist$mincost_outsidesublist[is.infinite(cost_outsidesublist$mincost_outsidesublist)] <- NA
 sum(is.infinite(cost_outsidesublist$mincost_outsidesublist))
+cost_outsidesublist$mediancost_outsidesublist[is.infinite(cost_outsidesublist$mediancost_outsidesublist)] <- NA
 sum(is.infinite(cost_outsidesublist$mediancost_outsidesublist))
 
 df.inquiry <- df.inquiry %>% left_join(cost_outsidesublist, by=c("req_id", "req_quantity"))
