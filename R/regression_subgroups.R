@@ -56,16 +56,19 @@ df.inquiry <- df.inquiry %>% filter(request_type == "List") %>%
 #date, pt, filled, trans_cost, min_cost_sublist, mediancost_insublist
 df.inquiry <- df.inquiry %>% mutate(date = as.Date(submittime),
                                     pt = ifelse(request_type == "PT",1,0),
-                                    filled = ifelse(is.na(trade_quantity < req_quantity*0.5) | trade_quantity < req_quantity*0.5, 0,1),
+                                    filled = if_else(is.na(trade_quantity) | (trade_quantity < req_quantity*0.5), 0 , 1 , NA),
                                     trans_cost = spread)
 
 df.inquiry <- df.inquiry %>% group_by(req_id, req_quantity) %>%
   mutate(mincost_insublist = map_dbl(row_number(), ~min(trans_cost[-.x], na.rm = TRUE)),
          mediancost_insublist = map_dbl(row_number(), ~median(trans_cost[-.x], na.rm = TRUE))) %>% ungroup()
 
-#There were some non existent spread variables, therefore there were 37,654 warnings for infinite values
-df.inquiry <- df.inquiry[is.finite(df.inquiry$min_cost_sublist), ]
-df.inquiry <- df.inquiry[is.finite(df.inquiry$mediancost_insublist), ]
+#There were some non existent spread variables, therefore there were 37,653 warnings for infinite values
+#df.inquiry <- df.inquiry[is.finite(df.inquiry$mincost_insublist), ]
+df.inquiry$mincost_insublist[is.infinite(df.inquiry$mincost_insublist)] <- NA
+
+#df.inquiry <- df.inquiry[is.finite(df.inquiry$mediancost_insublist), ]
+df.inquiry$mediancost_insublist[is.infinite(df.inquiry$mediancost_insublist)] <- NA
 
 #list_length, numsublists
 df.inquiry <- df.inquiry %>% group_by(req_id) %>% mutate(list_length = n()) %>% ungroup()
@@ -82,8 +85,8 @@ df.inquiry <- df.inquiry %>% left_join(numsublists, by="req_id")
 
 #mincost_outsidesublist, mediancost_outsidesublist
 cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity) %>%
-                                      summarise(min_cost = min(mincost_insublist),
-                                                median_cost = median(mediancost_insublist)) %>% 
+                                      summarise(min_cost = min(mincost_insublist, na.rm = TRUE),
+                                                median_cost = median(mediancost_insublist, na.rm = TRUE)) %>% 
                                       group_by(req_id) %>% 
                                       mutate(
                                         mincost_outsidesublist = map_dbl(row_number(), function(x) {
@@ -109,6 +112,9 @@ cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity) %>%
                                         }
                                       })) %>% select(-min_cost, -median_cost)
 
+cost_outsidesublist$mincost_outsidesublist[is.infinite(cost_outsidesublist$mincost_outsidesublist)] <- NA
+sum(is.infinite(cost_outsidesublist$mincost_outsidesublist))
+sum(is.infinite(cost_outsidesublist$mediancost_outsidesublist))
 
 df.inquiry <- df.inquiry %>% left_join(cost_outsidesublist, by=c("req_id", "req_quantity"))
 
@@ -144,6 +150,7 @@ subset <- df.inquiry %>% filter(pt == 0,
                                 list_length >= 20, 
                                 numsublists < list_length/2, 
                                 5 < sublist_length)
+
 
 #NOTE: Fixed effect at req_id level cluster standard errors at the level of (req_id and date)
 

@@ -10,7 +10,7 @@ number_assets <- number_assets %>% group_by(listid) %>% summarise(number_assets=
 
 computations <- function(df){
   
-  df <- df %>% left_join(number_assets, by=join_by(listid)) %>% mutate(
+  df <- df %>% left_join(number_assets, by=join_by(listid)) %>%  mutate(
                         
                       number_assets = ifelse(!is.na(listid), number_assets, 1),
                       #setting the variables
