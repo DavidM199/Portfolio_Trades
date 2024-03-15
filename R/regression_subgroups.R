@@ -190,7 +190,17 @@ grid.arrange(coefs_model1, coefs_model2,
 
 dev.off()
 
+#with summary only in a more organized manner
+summary1 <- tableGrob(summary_regr1$coefficients)
+summary2 <- tableGrob(summary_regr2$coefficients)
 
+pdf("~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/regression_results_summary.pdf", 
+    width = 11,
+    height = 8)
+grid.arrange(summary1, summary2,
+             ncol = 1)
+
+dev.off()
 
 
 
