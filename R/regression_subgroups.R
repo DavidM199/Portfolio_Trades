@@ -8,17 +8,32 @@ df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/
 
 initial_check <- df.inquiry %>% filter(request_type != "SRFQ") %>% 
                                 select(req_id, product_cd, request_type) %>% 
-                                group_by(req_id, request_type) %>% 
-                                summarise(num_product_cd = n_distinct(product_cd))
+                                 group_by(req_id, request_type) %>% 
+                                 summarise(num_product_cd = n_distinct(product_cd))
+
 sum(initial_check$num_product_cd==1)
 # The result is 306084
 sum(initial_check$num_product_cd>1)
 # The result is 13649
-
+length(initial_check$num_product_cd)
 # What percentage of List requests have this property?
 initial_check_list <- initial_check %>% filter(request_type=="List")
-sum(initial_check_list$num_product_cd>1)/length(initial_check_list$num_product_cd) * 100
-# 4.116 % 
+
+sum(initial_check_list$num_product_cd>1)
+# 13088 List requests 
+sum(initial_check_list$num_product_cd>1)/length(initial_check_list$num_product_cd)*100
+# 4.116 % of all List requests
+
+initial_check_list_inquiries <- df.inquiry %>% filter(request_type == "List") %>% 
+  select(req_id, product_cd, request_type) %>% 
+  group_by(req_id, request_type) %>% 
+  mutate(num_product_cd = n_distinct(product_cd)) %>% ungroup()
+
+sum(initial_check_list_inquiries$num_product_cd>1)
+# 217503 individual List inquiries have this property
+sum(initial_check_list_inquiries$num_product_cd>1)/length(initial_check_list_inquiries$num_product_cd)*100
+# 5.078369 % of all List inquiries have this property
+
 
 # 0 - Initial check END
 
@@ -31,7 +46,7 @@ sum(initial_check_list$num_product_cd>1)/length(initial_check_list$num_product_c
 #(sublist is a non singleton group of inquiries) 
 # Not including them is logical, because e.g. their min_cost_sublist is not defined
 
-#Also included only PT observations
+#Also included only List observations
 
 df.inquiry <- df.inquiry %>% filter(request_type == "List") %>%  
   group_by(req_id, req_quantity) %>% 
@@ -48,7 +63,7 @@ df.inquiry <- df.inquiry %>% group_by(req_id, req_quantity) %>%
   mutate(mincost_insublist = map_dbl(row_number(), ~min(trans_cost[-.x], na.rm = TRUE)),
          mediancost_insublist = map_dbl(row_number(), ~median(trans_cost[-.x], na.rm = TRUE))) %>% ungroup()
 
-#There were some non existent spread variables, therefore there were 37654 warnings for infinite values
+#There were some non existent spread variables, therefore there were 37,654 warnings for infinite values
 df.inquiry <- df.inquiry[is.finite(df.inquiry$min_cost_sublist), ]
 df.inquiry <- df.inquiry[is.finite(df.inquiry$mediancost_insublist), ]
 
@@ -67,7 +82,7 @@ df.inquiry <- df.inquiry %>% left_join(numsublists, by="req_id")
 
 #mincost_outsidesublist, mediancost_outsidesublist
 cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity) %>%
-                                      summarise(min_cost = sample(min_cost_sublist, size=1),
+                                      summarise(min_cost = sample(mincost_insublist, size=1),
                                                 median_cost = sample(mediancost_insublist, size=1)) %>% 
                                       group_by(req_id) %>% 
                                       mutate(
@@ -99,8 +114,8 @@ df.inquiry <- df.inquiry %>% left_join(cost_outsidesublist, by=c("req_id", "req_
 
 
 #Testing ----- map_dbl(row_number(), function(x){...})
-names <- c("Product A")
-prices <- c(10.99)
+names <- c("A", "B", "C", "D", "E")
+prices <- c(10.99, 7.99, 15.99, 11.5, 20.33)
 
 test <- data.frame(name = names, price = prices)
 
@@ -158,14 +173,20 @@ pvals <- data.frame(Pval_Model1 = pval_model1, Pval_Model2 = pval_model2)
 library(gridExtra)
 library(grid)
 
-coefs_grob <- tableGrob(coefs)
-errors_grob <- tableGrob(errors)
-pvals_grob <- tableGrob(pvals)
+coefs_model1 <- tableGrob(data.frame(coef_regr1=coefs_model1)) 
+coefs_model2  <- tableGrob(data.frame(coef_regr2=coefs_model2)) 
+errors_model1 <- tableGrob(data.frame(errors_regr1=errors_model1)) 
+errors_model2 <- tableGrob(data.frame(errors_regr2=errors_model2)) 
+pval_model1  <- tableGrob(data.frame(pval_regr1=pval_model1)) 
+pval_model2  <- tableGrob(data.frame(pval_regr2=pval_model2)) 
 
 pdf("~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/regression_results.pdf", 
     width = 8.5,
     height = 11)
-grid.arrange(coefs_grob, errors_grob, pvals_grob, ncol = 1)
+grid.arrange(coefs_model1, coefs_model2, 
+             errors_model1, errors_model2,
+             pval_model1, pval_model2, 
+             ncol = 2)
 
 dev.off()
 
