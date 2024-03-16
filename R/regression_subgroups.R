@@ -240,7 +240,7 @@ dev.off()
 
 #with summary only in a more organized manner
 
-summary1 <- data.frame(summary_regr1$coefficients )
+summary1 <- data.frame(summary_regr1$coefficients)
 summary2 <-  data.frame(summary_regr2$coefficients)
 
 
