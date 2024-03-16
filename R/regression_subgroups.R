@@ -117,8 +117,8 @@ length(test$mediancost_outsidesublist)
 
 #mincost_outsidesublist, mediancost_outsidesublist
 cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity) %>%
-                                      summarise(min_cost = min(mincost_insublist, na.rm = TRUE),
-                                                median_cost = median(mediancost_insublist, na.rm = TRUE)) %>% 
+                                      summarise(min_cost = min(trans_cost, na.rm = TRUE),
+                                                median_cost = median(trans_cost, na.rm = TRUE)) %>% 
                                       group_by(req_id) %>% 
                                       mutate(
                                         mincost_outsidesublist = map_dbl(row_number(), function(x) {
