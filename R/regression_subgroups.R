@@ -3,8 +3,10 @@ library(purrr)
 library(lfe)
 library(dplyr)
 df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv")
-
+write.csv(df.inquiry, "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv", row.names = FALSE)
 # 0 - Initial check START
+
+
 
 initial_check <- df.inquiry %>% filter(request_type != "SRFQ") %>% 
                                 select(req_id, product_cd, request_type) %>% 
@@ -34,6 +36,8 @@ sum(initial_check_list_inquiries$num_product_cd>1)
 sum(initial_check_list_inquiries$num_product_cd>1)/length(initial_check_list_inquiries$num_product_cd)*100
 # 5.078369 % of all List inquiries have this property
 
+#Excluding product_cd == "USHG" observations before moving on
+df.inquiry <- df.inquiry %>% filter(product_cd != "USHG")
 
 # 0 - Initial check END
 
@@ -63,7 +67,7 @@ df.inquiry <- df.inquiry %>% group_by(req_id, req_quantity) %>%
   mutate(mincost_insublist = map_dbl(row_number(), ~min(trans_cost[-.x], na.rm = TRUE)),
          mediancost_insublist = map_dbl(row_number(), ~median(trans_cost[-.x], na.rm = TRUE))) %>% ungroup()
 
-#There were some non existent spread variables, therefore there were 37,653 warnings for infinite values
+#There were some non existent spread variables, therefore there were 16,247 warnings for infinite values
 #df.inquiry <- df.inquiry[is.finite(df.inquiry$mincost_insublist), ]
 df.inquiry$mincost_insublist[is.infinite(df.inquiry$mincost_insublist)] <- NA
 

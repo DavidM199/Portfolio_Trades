@@ -12,7 +12,7 @@ computations <- function(df){
   
   df <- df %>% left_join(number_assets, by=join_by(listid)) %>%  mutate(
                         
-                      number_assets = ifelse(!is.na(listid), number_assets, 1),
+                      number_assets = if_else(!is.na(listid), number_assets, 1),
                       #setting the variables
                       cpp_bid_ps = case_when(
                         product_cd=="USHY" ~ cpp_bid_price,
@@ -36,8 +36,10 @@ computations <- function(df){
                         legside == "OWIC" ~ 1,
                         legside == "BWIC" ~ -1
                       ),
-                      spread_dollar = buy_or_sell * (t_b - cpp_mid_ps),
-                      spread_cpp = (cpp_offer_ps - cpp_bid_ps)/2,
+                      price_or_spread = if_else(trading_protocol == "Price", 1, -1),
+                      
+                      spread_dollar = buy_or_sell * price_or_spread * (t_b - cpp_mid_ps),
+                      spread_cpp = price_or_spread * (cpp_offer_ps - cpp_bid_ps)/2,
                       spread = spread_dollar / cpp_mid_ps,
                       req_dollar_value = case_when(
                         legside=="OWIC"~cpp_offer_ps * req_quantity ,
@@ -60,7 +62,6 @@ computations <- function(df){
                       revealdealers = ifelse(revealdealers=="Y", 1, 0) 
                       )
 }
-
 
 ### REAL COMPUTATION 
 
