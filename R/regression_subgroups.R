@@ -11,10 +11,9 @@ library(grid)
 # Reading Data ------------------------------------------------------------
 
 
-# df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv")
+df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv")
 # write.csv(df.inquiry, "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv", row.names = FALSE)
 
-df.inquiry  <- haven::read_dta("../Data/RFQ/inquiry_proccessed.dta")
 
 # FUNCTIONS ---------------------------------------------------------------
 
