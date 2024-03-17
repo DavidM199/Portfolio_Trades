@@ -67,7 +67,9 @@ FUNC_subset_reg <- function(df){
         return(ret)
         
       })) %>%
-    select(-min_cost, -median_cost, -sublist_length)
+    select(-min_cost, -median_cost, -sublist_length) %>% 
+    mutate(mincost_outsidesublist = if_else(is.infinite(mincost_outsidesublist) , NA , mincost_outsidesublist),
+           mediancost_outsidesublist = if_else(is.infinite(mediancost_outsidesublist) , NA , mediancost_outsidesublist))
   
   df <- df %>%
     left_join(cost_outsidesublist, by=c("req_id", "req_quantity"))
@@ -129,7 +131,7 @@ Regression2 <- function(df){
 # Filtering out SRFQ inquiries and inquiries that do not belong to any sublist 
 # (sublist is a non singleton group of inquiries) 
 # Not including them is logical, because e.g. their min_cost_sublist is not defined
-# list_lenght calculation before removing the sublists with only 1 inquiry
+# list_length calculation before removing the sublists with only 1 inquiry
 
 
 df.inquiry <- df.inquiry %>%
@@ -188,24 +190,25 @@ list.summary2
 
 
 
-
-
-summary1 <- Regression1(subset)
-summary2 <-  Regression2(subset)
-
-
-summary1 <- tableGrob(summary1)
-summary2 <- tableGrob(summary2)
+grob.summary1 <- lapply(list.summary1, tableGrob)
+grob.summary2 <- lapply(list.summary2, tableGrob)
 
 pdf("~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/regression_results_summary.pdf", 
     width = 8,
-    height = 6)
+    height = 10)
 
-title1 <- textGrob("Regression 1 and 2", gp = gpar(fontsize = 20, fontface = "bold"), vjust = 1)
+title1 <- textGrob("Regression 1", gp = gpar(fontsize = 20, fontface = "bold"), vjust = 1)
 grid.arrange(
-  summary1, summary2, 
+  grobs= grob.summary1[1:5], 
   ncol = 1,
   top = title1
+)
+
+title2 <- textGrob("Regression 2", gp = gpar(fontsize = 20, fontface = "bold"), vjust = 1)
+grid.arrange(
+  grobs = grob.summary2[1:5],
+  ncol = 1,
+  top = title2
 )
 
 dev.off()
