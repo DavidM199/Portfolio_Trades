@@ -84,7 +84,7 @@ numsublists <- df.inquiry %>% select(req_id, req_quantity) %>% group_by(req_id, 
 
 df.inquiry <- df.inquiry %>% left_join(numsublists, by="req_id")
                             
-                         
+#test How many subgroups have only 2 inquiries                       
 test  <- df.inquiry %>% group_by(req_id, req_quantity) %>%
   summarise(min_cost = min(mincost_insublist, na.rm = TRUE),
             median_cost = median(mediancost_insublist, na.rm = TRUE)) %>% 
@@ -116,42 +116,55 @@ sum(test$mediancost_outsidesublist)
 length(test$mediancost_outsidesublist)
 
 #mincost_outsidesublist, mediancost_outsidesublist
-cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity) %>%
-                                      summarise(min_cost = min(trans_cost, na.rm = TRUE),
-                                                median_cost = median(trans_cost, na.rm = TRUE)) %>% 
-                                      group_by(req_id) %>% 
-                                      mutate(
-                                        mincost_outsidesublist = map_dbl(row_number(), function(x) {
-                                        
-                                        vec_to_sample <- min_cost[-x]
-                                        if (length(vec_to_sample) == 1){
-                                          vec_to_sample[1]
-                                        }
-                                        else if (length(vec_to_sample) > 0) {
-                                          sample(vec_to_sample, size = 1)
-                                        } else {
-                                          NA_real_ 
-                                        }
-                                        
-                                      }),
-                                      mediancost_outsidesublist = map_dbl(row_number(),function(x) {
-                                        
-                                        vec_to_sample <- median_cost[-x]
-                                        if (length(vec_to_sample) == 1){
-                                          vec_to_sample[1]
-                                        } else if (length(vec_to_sample) > 0) {
-                                          sample(vec_to_sample, size = 1)
-                                        } else {
-                                          NA_real_ 
-                                        }
-                                      })) %>% select(-min_cost, -median_cost)
+FUNC_outsidelist_reg <- function(df.inquiry){
+  
+  cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity) %>%
+    summarise(min_cost = min(trans_cost, na.rm = TRUE),
+              median_cost = median(trans_cost, na.rm = TRUE)) %>% 
+    group_by(req_id) %>% 
+    mutate(
+      mincost_outsidesublist = map_dbl(row_number(), function(x) {
+        
+        vec_to_sample <- min_cost[-x]
+        if (length(vec_to_sample) == 1){
+          vec_to_sample[1]
+        }
+        else if (length(vec_to_sample) > 0) {
+          sample(vec_to_sample, size = 1)
+        } else {
+          NA_real_ 
+        }
+        
+      }),
+      mediancost_outsidesublist = map_dbl(row_number(),function(x) {
+        
+        vec_to_sample <- median_cost[-x]
+        if (length(vec_to_sample) == 1){
+          vec_to_sample[1]
+        } else if (length(vec_to_sample) > 0) {
+          sample(vec_to_sample, size = 1)
+        } else {
+          NA_real_ 
+        }
+      })) %>% select(-min_cost, -median_cost)
+  
+  cost_outsidesublist$mincost_outsidesublist[is.infinite(cost_outsidesublist$mincost_outsidesublist)] <- NA
+  cost_outsidesublist$mediancost_outsidesublist[is.infinite(cost_outsidesublist$mediancost_outsidesublist)] <- NA
+  
+  df.inquiry <- df.inquiry %>% left_join(cost_outsidesublist, by=c("req_id", "req_quantity"))
+  
+  return(df.inquiry)
+  
+}
 
-cost_outsidesublist$mincost_outsidesublist[is.infinite(cost_outsidesublist$mincost_outsidesublist)] <- NA
-sum(is.infinite(cost_outsidesublist$mincost_outsidesublist))
-cost_outsidesublist$mediancost_outsidesublist[is.infinite(cost_outsidesublist$mediancost_outsidesublist)] <- NA
-sum(is.infinite(cost_outsidesublist$mediancost_outsidesublist))
+list.df.inquiry<- lapply(1:5, function(x) FUNC_outsidelist_reg(df.inquiry))
 
-df.inquiry <- df.inquiry %>% left_join(cost_outsidesublist, by=c("req_id", "req_quantity"))
+#checking if all the infinite values have been eliminated
+for (df in list.df.inquiry){
+print(sum(is.infinite(df$mincost_outsidesublist)))
+
+print(sum(is.infinite(df$mediancost_outsidesublist)))
+}
 
 
 # 1 - Create variables END
@@ -179,96 +192,90 @@ rm(names, prices, test)
 # 2 - Regressions START
 
 #extracting relevant subset of the data
-subset <- df.inquiry %>% filter(pt == 0, 
-                                product_cd == "USHY", 
-                                p_type != "Broker-Dealer", 
-                                list_length >= 20, 
-                                numsublists < list_length/2, 
-                                5 < sublist_length)
+SubsetFunction <- function(df) {
+            subset <- df %>% filter(pt == 0, 
+                                  product_cd == "USHY", 
+                                  p_type != "Broker-Dealer", 
+                                  list_length >= 20, 
+                                  numsublists < list_length/2, 
+                                  5 < sublist_length)
+            return(subset)
+}
+list.subset <- lapply(list.df.inquiry, SubsetFunction)
 
 
+#creating a regression-running functions
 #NOTE: Fixed effect at req_id level cluster standard errors at the level of (req_id and date)
 
 #regression1: filled ~ trans_cost mediancost_insublist mediancost_outsidesublist
-regr1 <- felm(filled ~ trans_cost + mediancost_insublist + mediancost_outsidesublist | req_id | 0 | req_id + date, data = subset)
-
+Regression1 <-  function(df) {
+      
+      regr1 <- felm(filled ~ trans_cost + mediancost_insublist + mediancost_outsidesublist | req_id | 0 | req_id + date, data = df)
+      summary_regr1 <- summary(regr1, cluster = c("req_id", "date"))
+      df.coefficients <- data.frame(summary_regr1$coefficients)
+      
+      for (col_name in colnames(df.coefficients)) {
+        if (col_name == "Pr...t..") {
+          df.coefficients[[col_name]] <- formatC(df.coefficients[[col_name]], format = "g", digits = 3)
+        }else {
+          df.coefficients[[col_name]] <- formatC(df.coefficients[[col_name]], format = "f", digits = 4)
+        } 
+      }
+      
+      colnames(df.coefficients) <-  c("Estimate","Cluster.s.e.","t.value","pval")
+      
+      return(df.coefficients)
+}
 
 #regression2: filled ~ trans_cost mincost_insublist mincost_outsidesublist
-regr2 <- felm(filled ~ trans_cost + mincost_insublist + mincost_outsidesublist | req_id | 0 | req_id + date, data = subset)
+Regression2 <- function(df){
 
-
-summary_regr1 <- summary(regr1, cluster = c("req_id", "date"))
-summary_regr2 <- summary(regr2, cluster = c("req_id", "date"))
-
-# Extract coefficients, standard errors, and p-values
-coefs_model1 <- summary_regr1$coefficients[, "Estimate"]
-coefs_model2 <- summary_regr2$coefficients[, "Estimate"]
-
-errors_model1 <- summary_regr1$coefficients[, "Cluster s.e."]
-errors_model2 <- summary_regr2$coefficients[, "Cluster s.e."]
-
-pval_model1 <- summary_regr1$coefficients[, "Pr(>|t|)"]
-pval_model2 <- summary_regr2$coefficients[, "Pr(>|t|)"]
-
-# Combine into data frames
-coefs <- data.frame(Coefficients_Model1 = coefs_model1, Coefficients_Model2 = coefs_model2)
-errors <- data.frame(SE_Model1 = errors_model1, SE_Model2 = errors_model2)
-pvals <- data.frame(Pval_Model1 = pval_model1, Pval_Model2 = pval_model2)
+      regr2 <- felm(filled ~ trans_cost + mincost_insublist + mincost_outsidesublist | req_id | 0 | req_id + date, data = df)
+      summary_regr2 <- summary(regr2, cluster = c("req_id", "date"))
+      df.coefficients <- data.frame(summary_regr2$coefficients)
+      
+      for (col_name in colnames(df.coefficients)) {
+        
+        df.coefficients[[col_name]] <- formatC(df.coefficients[[col_name]], format = "f", digits = 4)
+        
+      }
+      
+      colnames(df.coefficients) <-  c("Estimate","Cluster.s.e.","t.value","pval")
+      
+      return(df.coefficients)
+}
 
 
 # 2 - Regressions END
 
+
+#Making the report Presentable
 library(gridExtra)
 library(grid)
 
-coefs_model1 <- tableGrob(data.frame(coef_regr1=coefs_model1)) 
-coefs_model2  <- tableGrob(data.frame(coef_regr2=coefs_model2)) 
-errors_model1 <- tableGrob(data.frame(errors_regr1=errors_model1)) 
-errors_model2 <- tableGrob(data.frame(errors_regr2=errors_model2)) 
-pval_model1  <- tableGrob(data.frame(pval_regr1=pval_model1)) 
-pval_model2  <- tableGrob(data.frame(pval_regr2=pval_model2)) 
-
-pdf("~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/regression_results.pdf", 
-    width = 8.5,
-    height = 11)
-grid.arrange(coefs_model1, coefs_model2, 
-             errors_model1, errors_model2,
-             pval_model1, pval_model2, 
-             ncol = 2)
-
-dev.off()
-
-#with summary only in a more organized manner
-
-summary1 <- data.frame(summary_regr1$coefficients)
-summary2 <-  data.frame(summary_regr2$coefficients)
+summary1.list <- lapply(list.subset, Regression1)
+summary2.list <-  lapply(list.subset, Regression2)
 
 
-print(colnames(summary1))
-for (col_name in colnames(summary1)) {
-   if (col_name == "Pr...t..") {
-     summary1[[col_name]] <- formatC(summary1[[col_name]], format = "g", digits = 3)
-  }else {
-    summary1[[col_name]] <- formatC(summary1[[col_name]], format = "f", digits = 4)
-  } 
-}
-for (col_name in colnames(summary2)) {
-
-    summary2[[col_name]] <- formatC(summary2[[col_name]], format = "f", digits = 4)
-  
-}
-
-colnames(summary1) <-  c("Estimate","Cluster.s.e.","t.value","pval")
-colnames(summary2) <-  c("Estimate","Cluster.s.e.","t.value","pval")
-
-summary1 <- tableGrob(summary1)
-summary2 <- tableGrob(summary2)
+summary1.list <- lapply(summary1.list, tableGrob) 
+summary2.list <- lapply(summary2.list, tableGrob)
 
 pdf("~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/regression_results_summary.pdf", 
-    width = 11,
-    height = 8)
-grid.arrange(summary1, summary2,
-             ncol = 1)
+    width = 8,
+    height = 10)
 
+title1 <- textGrob("Regression 1", gp = gpar(fontsize = 20, fontface = "bold"), vjust = 1)
+grid.arrange(
+  grobs = summary1.list[1:5], 
+  ncol = 1,
+  top = title1
+)
+
+title2 <- textGrob("Regression 2", gp = gpar(fontsize = 20, fontface = "bold"), vjust = 1)
+grid.arrange(
+  grobs = summary2.list[1:5], 
+  ncol = 1,
+  top = title2
+)
 dev.off()
 
