@@ -45,13 +45,15 @@ df.inquiry <- df.inquiry %>% filter(product_cd != "USHG")
 
 # 1 - Create variables START
 
+# list_lenght calculation before removing the sublists with only 1 inquiry
+df.inquiry <- df.inquiry %>% group_by(req_id) %>% mutate(list_length = n()) %>% ungroup()
+
 
 # Filtering out SRFQ inquiries and inquiries that do not belong to any sublist 
 #(sublist is a non singleton group of inquiries) 
 # Not including them is logical, because e.g. their min_cost_sublist is not defined
 
 #Also included only List observations
-
 df.inquiry <- df.inquiry %>% filter(request_type == "List") %>%  
   group_by(req_id, req_quantity) %>% 
   mutate(sublist_length=n()) %>% 
@@ -67,16 +69,14 @@ df.inquiry <- df.inquiry %>% group_by(req_id, req_quantity) %>%
   mutate(mincost_insublist = map_dbl(row_number(), ~min(trans_cost[-.x], na.rm = TRUE)),
          mediancost_insublist = map_dbl(row_number(), ~median(trans_cost[-.x], na.rm = TRUE))) %>% ungroup()
 
-#There were some non existent spread variables, therefore there were 16,247 warnings for infinite values
+#There were some non existent spread variables, therefore there were 37,653 warnings for infinite values
 #df.inquiry <- df.inquiry[is.finite(df.inquiry$mincost_insublist), ]
 df.inquiry$mincost_insublist[is.infinite(df.inquiry$mincost_insublist)] <- NA
 
 #df.inquiry <- df.inquiry[is.finite(df.inquiry$mediancost_insublist), ]
 df.inquiry$mediancost_insublist[is.infinite(df.inquiry$mediancost_insublist)] <- NA
 
-#list_length, numsublists
-df.inquiry <- df.inquiry %>% group_by(req_id) %>% mutate(list_length = n()) %>% ungroup()
-
+#numsublists
 numsublists <- df.inquiry %>% select(req_id, req_quantity) %>% group_by(req_id, req_quantity) %>% 
                             summarise(num=n(), .groups = 'keep') %>% 
                             group_by(req_id) %>% 
@@ -118,35 +118,29 @@ length(test$mediancost_outsidesublist)
 #mincost_outsidesublist, mediancost_outsidesublist
 FUNC_outsidelist_reg <- function(df.inquiry){
   
-  cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity) %>%
+  cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity, sublist_length) %>%
     summarise(min_cost = min(trans_cost, na.rm = TRUE),
               median_cost = median(trans_cost, na.rm = TRUE)) %>% 
     group_by(req_id) %>% 
     mutate(
       mincost_outsidesublist = map_dbl(row_number(), function(x) {
         
-        vec_to_sample <- min_cost[-x]
-        if (length(vec_to_sample) == 1){
-          vec_to_sample[1]
-        }
-        else if (length(vec_to_sample) > 0) {
-          sample(vec_to_sample, size = 1)
+        if (length(min_cost[-x]) > 0){
+        min_cost[which.max(sublist_length[-x])]
         } else {
-          NA_real_ 
+          NA_real_
         }
         
       }),
       mediancost_outsidesublist = map_dbl(row_number(),function(x) {
         
-        vec_to_sample <- median_cost[-x]
-        if (length(vec_to_sample) == 1){
-          vec_to_sample[1]
-        } else if (length(vec_to_sample) > 0) {
-          sample(vec_to_sample, size = 1)
+        if (length(median_cost[-x]) > 0){
+          median_cost[which.max(sublist_length[-x])]
         } else {
-          NA_real_ 
+          NA_real_
         }
-      })) %>% select(-min_cost, -median_cost)
+        
+      })) %>% select(-min_cost, -median_cost, -sublist_length)
   
   cost_outsidesublist$mincost_outsidesublist[is.infinite(cost_outsidesublist$mincost_outsidesublist)] <- NA
   cost_outsidesublist$mediancost_outsidesublist[is.infinite(cost_outsidesublist$mediancost_outsidesublist)] <- NA
@@ -157,14 +151,14 @@ FUNC_outsidelist_reg <- function(df.inquiry){
   
 }
 
-list.df.inquiry<- lapply(1:5, function(x) FUNC_outsidelist_reg(df.inquiry))
+merged.df.inquiry<- FUNC_outsidelist_reg(df.inquiry)
 
 #checking if all the infinite values have been eliminated
-for (df in list.df.inquiry){
-print(sum(is.infinite(df$mincost_outsidesublist)))
 
-print(sum(is.infinite(df$mediancost_outsidesublist)))
-}
+print(sum(is.infinite(merged.df.inquiry$mincost_outsidesublist)))
+
+print(sum(is.infinite(merged.df.inquiry$mediancost_outsidesublist)))
+
 
 
 # 1 - Create variables END
@@ -201,7 +195,7 @@ SubsetFunction <- function(df) {
                                   5 < sublist_length)
             return(subset)
 }
-list.subset <- lapply(list.df.inquiry, SubsetFunction)
+subset <- SubsetFunction(merged.df.inquiry)
 
 
 #creating a regression-running functions
@@ -210,8 +204,8 @@ list.subset <- lapply(list.df.inquiry, SubsetFunction)
 #regression1: filled ~ trans_cost mediancost_insublist mediancost_outsidesublist
 Regression1 <-  function(df) {
       
-      regr1 <- felm(filled ~ trans_cost + mediancost_insublist + mediancost_outsidesublist | req_id | 0 | req_id + date, data = df)
-      summary_regr1 <- summary(regr1, cluster = c("req_id", "date"))
+      regr1 <- felm(filled ~ trans_cost + mediancost_insublist + mediancost_outsidesublist | req_id | 0 | req_id, data = df)
+      summary_regr1 <- summary(regr1, cluster = c("req_id"))
       df.coefficients <- data.frame(summary_regr1$coefficients)
       
       for (col_name in colnames(df.coefficients)) {
@@ -230,8 +224,8 @@ Regression1 <-  function(df) {
 #regression2: filled ~ trans_cost mincost_insublist mincost_outsidesublist
 Regression2 <- function(df){
 
-      regr2 <- felm(filled ~ trans_cost + mincost_insublist + mincost_outsidesublist | req_id | 0 | req_id + date, data = df)
-      summary_regr2 <- summary(regr2, cluster = c("req_id", "date"))
+      regr2 <- felm(filled ~ trans_cost + mincost_insublist + mincost_outsidesublist | req_id | 0 | req_id, data = df)
+      summary_regr2 <- summary(regr2, cluster = c("req_id"))
       df.coefficients <- data.frame(summary_regr2$coefficients)
       
       for (col_name in colnames(df.coefficients)) {
@@ -253,29 +247,23 @@ Regression2 <- function(df){
 library(gridExtra)
 library(grid)
 
-summary1.list <- lapply(list.subset, Regression1)
-summary2.list <-  lapply(list.subset, Regression2)
+summary1 <- Regression1(subset)
+summary2 <-  Regression2(subset)
 
 
-summary1.list <- lapply(summary1.list, tableGrob) 
-summary2.list <- lapply(summary2.list, tableGrob)
+summary1 <- tableGrob(summary1)
+summary2 <- tableGrob(summary2)
 
 pdf("~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/regression_results_summary.pdf", 
     width = 8,
-    height = 10)
+    height = 6)
 
-title1 <- textGrob("Regression 1", gp = gpar(fontsize = 20, fontface = "bold"), vjust = 1)
+title1 <- textGrob("Regression 1 and 2", gp = gpar(fontsize = 20, fontface = "bold"), vjust = 1)
 grid.arrange(
-  grobs = summary1.list[1:5], 
+  summary1, summary2, 
   ncol = 1,
   top = title1
 )
 
-title2 <- textGrob("Regression 2", gp = gpar(fontsize = 20, fontface = "bold"), vjust = 1)
-grid.arrange(
-  grobs = summary2.list[1:5], 
-  ncol = 1,
-  top = title2
-)
 dev.off()
 
