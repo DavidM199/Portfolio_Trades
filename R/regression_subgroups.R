@@ -11,17 +11,18 @@ library(grid)
 # Reading Data ------------------------------------------------------------
 
 
-df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv")
-write.csv(df.inquiry, "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv", row.names = FALSE)
+# df.inquiry  <- read_csv("~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv")
+# write.csv(df.inquiry, "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/inquiries_58_columns.csv", row.names = FALSE)
 
 df.inquiry  <- haven::read_dta("../Data/RFQ/inquiry_proccessed.dta")
 
 # FUNCTIONS ---------------------------------------------------------------
 
 #mincost_outsidesublist, mediancost_outsidesublist
-FUNC_subset_reg <- function(df.inquiry){
+FUNC_subset_reg <- function(df){
   
-  cost_outsidesublist <- df.inquiry %>% group_by(req_id, req_quantity, sublist_length) %>%
+  cost_outsidesublist <- df %>%
+    group_by(req_id, req_quantity, sublist_length) %>%
     summarise(min_cost = min(trans_cost, na.rm = TRUE),
               median_cost = median(trans_cost, na.rm = TRUE)) %>% 
     group_by(req_id) %>% 
@@ -29,38 +30,55 @@ FUNC_subset_reg <- function(df.inquiry){
       mincost_outsidesublist = map_dbl(row_number(), function(x) {
         
         if (length(min_cost[-x]) > 0){
-          min_cost[which.max(sublist_length[-x])]
+          indices <- which(sublist_length[-x] == max(sublist_length[-x]))
+          
+          # which.max doesn't randomly choose a max. It chooses the first one.
+          # We use this because we want it to be random
+          if (length(indices) > 1){
+            ret <- min_cost[sample(indices , 1)]
+          } else {
+            ret <- min_cost[indices]
+          }
+          
         } else {
-          NA_real_
+          ret <- NA_real_
         }
+        
+        return(ret)
         
       }),
       mediancost_outsidesublist = map_dbl(row_number(),function(x) {
         
         if (length(median_cost[-x]) > 0){
-          median_cost[which.max(sublist_length[-x])]
+          
+          indices <- which(sublist_length[-x] == max(sublist_length[-x]))
+          
+          # which.max doesn't randomly choose a max. It chooses the first one.
+          # We use this because we want it to be random
+          if (length(indices) > 1){
+            ret <- median_cost[sample(indices , 1)]
+          } else {
+            ret <- median_cost[indices]
+          }
+          
         } else {
-          NA_real_
+            ret <- NA_real_
         }
         
-      })) %>% select(-min_cost, -median_cost, -sublist_length)
+        return(ret)
+        
+      })) %>%
+    select(-min_cost, -median_cost, -sublist_length)
   
-  cost_outsidesublist$mincost_outsidesublist[is.infinite(cost_outsidesublist$mincost_outsidesublist)] <- NA
-  cost_outsidesublist$mediancost_outsidesublist[is.infinite(cost_outsidesublist$mediancost_outsidesublist)] <- NA
+  df <- df %>%
+    left_join(cost_outsidesublist, by=c("req_id", "req_quantity"))
   
-  df.inquiry <- df.inquiry %>% left_join(cost_outsidesublist, by=c("req_id", "req_quantity"))
-  
-  subset <- df.inquiry %>%
-    filter(pt == 0,
-           product_cd == "USHY",
-           p_type != "Broker-Dealer",
-           list_length >= 20,
-           numsublists < list_length/2,
-           5 < sublist_length)
-  
-  return(subset)
-  
+  return(df)
 }
+
+#creating a regression-running functions
+#NOTE: Fixed effect at req_id level cluster standard errors at the level of (req_id)
+
 Regression1 <-  function(df) {
   
   regr1 <- felm(filled ~ trans_cost + mediancost_insublist + mediancost_outsidesublist | req_id | 0 | req_id, data = df)
@@ -116,9 +134,9 @@ Regression2 <- function(df){
 
 
 df.inquiry <- df.inquiry %>%
-  select(product_cd , request_type , req_id , req_quantity , trade_quantity , spread)%>%
+  select(product_cd , p_type , request_type , req_id , req_quantity , trade_quantity , spread)%>%
   
-  filter(request_type == "List" & filter(product_cd == "USHY")) %>% 
+  filter(request_type == "List" & product_cd == "USHY" & p_type != "Broker-Dealer") %>% 
   
   # filled
   mutate(filled     = if_else(trade_quantity < (0.5*req_quantity) , 0 , 1 , 0),
@@ -138,31 +156,33 @@ df.inquiry <- df.inquiry %>%
   mutate(mincost_insublist    = map_dbl(row_number(), ~min(trans_cost[-.x]   , na.rm = TRUE)),
          mediancost_insublist = map_dbl(row_number(), ~median(trans_cost[-.x], na.rm = TRUE)))%>%
   ungroup()%>%
+  mutate(mincost_insublist = if_else(is.infinite(mincost_insublist) , NA , mincost_insublist))%>%
   
   #numsublists
   group_by(req_id) %>% 
   mutate(numsublists = n_distinct(req_quantity))%>%
-  ungroup()
+  ungroup() %>%
+  
+  filter(list_length >= 20,
+         numsublists < list_length/2,
+         5 < sublist_length)
 
 
 
-list.subset   <- lapply(1:5         , function(df)     FUNC_subset_reg(df))
+
+list.subset   <- lapply(1:5         , function(df)     FUNC_subset_reg(df.inquiry))
+
+
+
+# REGRESSIONS -------------------------------------------------------------
+
+
 list.summary1 <- lapply(list.subset , function(subset) Regression1(subset))
 list.summary2 <- lapply(list.subset , function(subset) Regression2(subset))
 
+list.summary1
+list.summary2
 
-
-
-
-
-
-merged.df.inquiry<- FUNC_outsidelist_reg(df.inquiry)
-
-#checking if all the infinite values have been eliminated
-
-print(sum(is.infinite(merged.df.inquiry$mincost_outsidesublist)))
-
-print(sum(is.infinite(merged.df.inquiry$mediancost_outsidesublist)))
 
 
 
@@ -243,6 +263,9 @@ dev.off()
 
 
 
+
+
+
 # INITIAL CHECK -----------------------------------------------------------
 
 # 0 - Initial check START
@@ -288,6 +311,8 @@ df.inquiry <- df.inquiry %>% filter(product_cd != "USHG")
 
 
 
+cost_outsidesublist$mincost_outsidesublist[is.infinite(cost_outsidesublist$mincost_outsidesublist)] <- NA
+cost_outsidesublist$mediancost_outsidesublist[is.infinite(cost_outsidesublist$mediancost_outsidesublist)] <- NA
 
 
 #There were some non existent spread variables, therefore there were 37,653 warnings for infinite values
