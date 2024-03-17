@@ -185,57 +185,8 @@ list.summary2
 
 
 
+# REPORTING ---------------------------------------------------------------
 
-# 1 - Create variables END
-
-
-
-
-
-
-#creating a regression-running functions
-#NOTE: Fixed effect at req_id level cluster standard errors at the level of (req_id and date)
-
-#regression1: filled ~ trans_cost mediancost_insublist mediancost_outsidesublist
-Regression1 <-  function(df) {
-      
-      regr1 <- felm(filled ~ trans_cost + mediancost_insublist + mediancost_outsidesublist | req_id | 0 | req_id, data = df)
-      summary_regr1 <- summary(regr1, cluster = c("req_id"))
-      df.coefficients <- data.frame(summary_regr1$coefficients)
-      
-      for (col_name in colnames(df.coefficients)) {
-        if (col_name == "Pr...t..") {
-          df.coefficients[[col_name]] <- formatC(df.coefficients[[col_name]], format = "g", digits = 3)
-        }else {
-          df.coefficients[[col_name]] <- formatC(df.coefficients[[col_name]], format = "f", digits = 4)
-        } 
-      }
-      
-      colnames(df.coefficients) <-  c("Estimate","Cluster.s.e.","t.value","pval")
-      
-      return(df.coefficients)
-}
-
-#regression2: filled ~ trans_cost mincost_insublist mincost_outsidesublist
-Regression2 <- function(df){
-
-      regr2 <- felm(filled ~ trans_cost + mincost_insublist + mincost_outsidesublist | req_id | 0 | req_id, data = df)
-      summary_regr2 <- summary(regr2, cluster = c("req_id"))
-      df.coefficients <- data.frame(summary_regr2$coefficients)
-      
-      for (col_name in colnames(df.coefficients)) {
-        
-        df.coefficients[[col_name]] <- formatC(df.coefficients[[col_name]], format = "f", digits = 4)
-        
-      }
-      
-      colnames(df.coefficients) <-  c("Estimate","Cluster.s.e.","t.value","pval")
-      
-      return(df.coefficients)
-}
-
-
-# 2 - Regressions END
 
 
 
