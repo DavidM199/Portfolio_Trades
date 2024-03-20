@@ -77,6 +77,42 @@ FUNC_subset_reg <- function(df){
   return(df)
 }
 
+# min/mediancost_outsidesublist redefined ---------------------------------
+
+FUNC_subset_reg2 <- function(df){
+  
+  cost_outsidesublist <- df %>%
+    group_by(req_id) %>%
+    mutate(
+      mincost_outsidesublist = map_dbl(row_number(), function(x) {
+        
+        cur_req_quantity <- req_quantity[x]
+        
+        indices <- which(cur_req_quantity != req_quantity)
+        
+        ret <- min(trans_cost[indices], na.rm = TRUE)
+        
+        return(ret)
+        
+      }),
+      mediancost_outsidesublist = map_dbl(row_number(),function(x) {
+        
+        cur_req_quantity <- req_quantity[x]
+        
+        indices <- which(cur_req_quantity != req_quantity)
+        
+        ret <- median(trans_cost[indices], na.rm = TRUE)
+        
+        return(ret)
+        
+      })) %>% ungroup() %>% 
+              mutate(mincost_outsidesublist = if_else(is.infinite(mincost_outsidesublist) , NA , mincost_outsidesublist),
+                    mediancost_outsidesublist = if_else(is.infinite(mediancost_outsidesublist) , NA , mediancost_outsidesublist))
+
+  
+  return(cost_outsidesublist)
+}
+
 #creating a regression-running functions
 #NOTE: Fixed effect at req_id level cluster standard errors at the level of (req_id)
 
@@ -171,9 +207,8 @@ df.inquiry <- df.inquiry %>%
 
 
 
-list.subset   <- lapply(1:5         , function(df)     FUNC_subset_reg(df.inquiry))
-
-
+list.subset   <- lapply(1:5 , function(df)     FUNC_subset_reg(df.inquiry))
+write.csv(list.subset[[1]], "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/subset.csv", row.names = FALSE)
 
 # REGRESSIONS -------------------------------------------------------------
 
@@ -183,7 +218,6 @@ list.summary2 <- lapply(list.subset , function(subset) Regression2(subset))
 
 list.summary1
 list.summary2
-
 
 
 # REPORTING ---------------------------------------------------------------
@@ -214,9 +248,21 @@ grid.arrange(
 dev.off()
 
 
+pdf("~/Desktop/github/Portfolio_Trades/Outputs_David/Figures/regression_results_summary.pdf", 
+    width = 8,
+    height = 6)
+
+title1 <- textGrob("Regression 1 and 2", gp = gpar(fontsize = 20, fontface = "bold"), vjust = 1)
+grid.arrange(
+  grob.summary1[[1]], grob.summary2[[1]],  
+  ncol = 1,
+  top = title1
+)
+dev.off()
 
 
-
+hist <- ggplot(list.subset[[1]], aes(x=trans_cost)) + geom_histogram(binwidth = 0.0025) +  xlim(-0.03, 0.1)
+hist
 
 
 # INITIAL CHECK -----------------------------------------------------------
