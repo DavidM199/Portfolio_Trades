@@ -2,6 +2,7 @@ library(tidyverse)
 library(purrr)
 library(lfe)
 library(dplyr)
+library(DescTools)
 
 #Making the report Presentable
 library(gridExtra)
@@ -142,15 +143,24 @@ Regression2 <- function(df){
   df.coefficients <- data.frame(summary_regr2$coefficients)
   
   for (col_name in colnames(df.coefficients)) {
-    
-    df.coefficients[[col_name]] <- formatC(df.coefficients[[col_name]], format = "f", digits = 4)
-    
+    if (col_name == "Pr...t..") {
+      df.coefficients[[col_name]] <- formatC(df.coefficients[[col_name]], format = "g", digits = 3)
+    }else {
+      df.coefficients[[col_name]] <- formatC(df.coefficients[[col_name]], format = "f", digits = 4)
+    }
   }
   
   colnames(df.coefficients) <-  c("Estimate","Cluster.s.e.","t.value","pval")
   
   return(df.coefficients)
 }
+
+
+#creating winsorize function to be used with lapply
+winsorize_trans_cost <- function(df){
+    df$trans_cost <- Winsorize(df$trans_cost, minval = quantile(df$trans_cost, 0.005, na.rm = TRUE), maxval = quantile(df$trans_cost, 0.995, na.rm=TRUE), na.rm = TRUE)
+    return(df)
+    }
 
 
 
@@ -207,21 +217,35 @@ df.inquiry <- df.inquiry %>%
 
 
 
-list.subset   <- lapply(1:5 , function(df)     FUNC_subset_reg(df.inquiry))
-write.csv(list.subset[[1]], "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/working_files/subset.csv", row.names = FALSE)
+subset_largestsublist <- FUNC_subset_reg(df.inquiry)
+subset_allothersublist <- FUNC_subset_reg2(df.inquiry)
+
+#writing csvs for RegressionSummary.Rmd
+write.csv(subset_largestsublist, "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/regression20.03/subset_largestsublist.csv", row.names = FALSE)
+write.csv(subset_allothersublist, "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/regression20.03/subset_allothersublist.csv", row.names = FALSE)
+write.csv(df.inquiry, "~/Desktop/Portfolio_Trades_my_computer/data_minimizing/regression20.03/trans_cost_calc.csv", row.names = FALSE)
+
+#winsorizing trans_cost
+subset_largestsublist <- winsorize_trans_cost(subset_largestsublist)
+subset_allothersublist <- winsorize_trans_cost(subset_allothersublist)
+
 
 # REGRESSIONS -------------------------------------------------------------
 
 
-list.summary1 <- lapply(list.subset , function(subset) Regression1(subset))
-list.summary2 <- lapply(list.subset , function(subset) Regression2(subset))
+summary1_largestsublist <- Regression1(subset_largestsublist)
+summary2_largestsublist <-  Regression2(subset_largestsublist)
 
-list.summary1
-list.summary2
+summary1_largestsublist
+summary2_largestsublist
 
+summary1_allothersublist <-  Regression1(subset_allothersublist)
+summary2_allothersublist <-  Regression2(subset_allothersublist)
+
+summary1_allothersublist
+summary2_allothersublist
 
 # REPORTING ---------------------------------------------------------------
-
 
 
 grob.summary1 <- lapply(list.summary1, tableGrob)
