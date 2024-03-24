@@ -2,7 +2,7 @@ library(data.table)
 library(dplyr)
 library(haven)
 
-csv_files <- list.files("Data/RFQ/Original/" , full.names = T, pattern = ".csv")
+csv_files <- list.files("../Data/RFQ/Original/" , full.names = T, pattern = ".csv")
 
 df.inquiry <- list()
 df.resp    <- list()
@@ -52,21 +52,5 @@ for(i in 1:length(csv_files)){
 df.inquiry_ <- rbindlist(df.inquiry)
 df.resp_    <- rbindlist(df.resp)
 
-write_dta(df.inquiry_    , path = "Data/RFQ/inquiry.dta")
-write_dta(df.resp_       , path = "Data/RFQ/response.dta")
-
-df_ <- df.inquiry_ %>%
-    select(inquiryid , all_resps )
-
-df_ <- left_join(df.resp_ , df_)
-
-number_of_repsonses <- df_ %>%
-  group_by(inquiryid)%>%
-  summarise(n = n(),
-            all_resp = unique(all_resps))
-
-number_of_repsonses2 <- number_of_repsonses %>%
-  filter(n != all_resp & all_resp >1)%>%
-  mutate(diff = n - all_resp)
-
-save(number_of_repsonses , file = "number_of_responses.RData")
+write_dta(df.inquiry_    , path = "../Data/RFQ/inquiry.dta")
+write_dta(df.resp_       , path = "../Data/RFQ/response.dta")
